@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="MarkdownRender icon">
+  <defs>
+    <linearGradient id="background" x1="160" y1="120" x2="864" y2="904" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B7A75"/>
+      <stop offset="0.55" stop-color="#145C9E"/>
+      <stop offset="1" stop-color="#1F2A44"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#08111F" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="196" fill="url(#background)"/>
+  <path d="M208 814V210c0-38 30-68 68-68h330l210 210v462c0 38-30 68-68 68H276c-38 0-68-30-68-68Z" fill="#F8FAFC" filter="url(#shadow)"/>
+  <path d="M606 142v152c0 32 26 58 58 58h152L606 142Z" fill="#D9E8F5"/>
+  <path d="M662 352h154L606 142v154c0 31 25 56 56 56Z" fill="#C7DCEB"/>
+
+  <rect x="286" y="286" width="452" height="82" rx="24" fill="#111827"/>
+  <text x="328" y="346" font-family="Menlo, Monaco, monospace" font-size="48" font-weight="800" fill="#FFFFFF">MD</text>
+  <path d="M607 316h66v-38h40v38h46l-76 72-76-72Z" fill="#35D0BA"/>
+
+  <path d="M300 474h186l72 112 74-112h90v246h-84V594l-62 96h-38l-62-96v126h-84V558h-92v-84Z" fill="#145C9E"/>
+  <rect x="300" y="756" width="424" height="26" rx="13" fill="#CBD5E1"/>
+  <rect x="300" y="812" width="312" height="26" rx="13" fill="#CBD5E1"/>
+
+  <path d="M245 726c58 54 132 86 220 96" fill="none" stroke="#35D0BA" stroke-width="28" stroke-linecap="round"/>
+  <path d="M450 772l70 58-78 46" fill="none" stroke="#35D0BA" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -5,6 +5,10 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 BUILD_DIR="$ROOT_DIR/.build"
 DIST_DIR="$ROOT_DIR/dist/MarkdownRender.app"
+ICON_SOURCE="$ROOT_DIR/Assets/MarkdownRenderIcon.svg"
+ICON_PNG="$BUILD_DIR/MarkdownRenderIcon.png"
+ICONSET_DIR="$BUILD_DIR/MarkdownRender.iconset"
+ICON_DEST="$DIST_DIR/Contents/Resources/MarkdownRender.icns"
 MODULE_CACHE_DIR="${TMPDIR%/}/clang-module-cache"
 SWIFTPM_CACHE_DIR="${TMPDIR%/}/swiftpm-module-cache"
 
@@ -23,6 +27,21 @@ rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR/Contents/MacOS" "$DIST_DIR/Contents/Resources"
 
 cp "$BUILD_DIR/release/MarkdownRender" "$DIST_DIR/Contents/MacOS/MarkdownRender"
+
+rm -rf "$ICONSET_DIR"
+mkdir -p "$ICONSET_DIR"
+
+swift "$ROOT_DIR/scripts/render_icon.swift" "$ICON_SOURCE" "$ICON_PNG"
+
+for size in 16 32 128 256 512; do
+  sips -z "$size" "$size" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
+  doubled=$((size * 2))
+  sips -z "$doubled" "$doubled" "$ICON_PNG" --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
+done
+
+if ! iconutil -c icns "$ICONSET_DIR" -o "$ICON_DEST" >/dev/null 2>&1; then
+  swift "$ROOT_DIR/scripts/write_icns.swift" "$ICONSET_DIR" "$ICON_DEST"
+fi
 
 PLIST_PATH="$DIST_DIR/Contents/Info.plist"
 cat > "$PLIST_PATH" <<'PLIST'
@@ -58,6 +77,8 @@ cat > "$PLIST_PATH" <<'PLIST'
   <string>MarkdownRender</string>
   <key>CFBundleIdentifier</key>
   <string>local.markdown-render</string>
+  <key>CFBundleIconFile</key>
+  <string>MarkdownRender</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -98,5 +119,7 @@ cat > "$PLIST_PATH" <<'PLIST'
 </dict>
 </plist>
 PLIST
+
+codesign --force --deep --sign - "$DIST_DIR"
 
 echo "Built app bundle at $DIST_DIR"

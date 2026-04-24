@@ -32,3 +32,4 @@ Replace the installed app in `/Applications` with the rebuilt bundle so macOS ca
 
 - The renderer supports common Markdown syntax: headings, paragraphs, lists, blockquotes, code fences, links, images, bold, italic, and inline code.
 - The renderer is intentionally small and does not aim for full CommonMark compatibility.
+- The build script ad-hoc signs the local app bundle. Developer ID signing and notarization are still required for warning-free distribution to other Macs.

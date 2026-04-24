@@ -30,6 +30,8 @@
   <string>MarkdownRender</string>
   <key>CFBundleIdentifier</key>
   <string>local.markdown-render</string>
+  <key>CFBundleIconFile</key>
+  <string>MarkdownRender</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
