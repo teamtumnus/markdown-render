@@ -113,6 +113,63 @@ enum MarkdownRenderer {
             padding-left: 16px;
           }
 
+          .admonition {
+            margin: 0 0 1em;
+            padding: 16px 18px;
+            border-left: 4px solid #64748b;
+            border-radius: 12px;
+            background: #f8fafc;
+          }
+
+          .admonition-title {
+            margin: 0 0 0.65em;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #0f172a;
+          }
+
+          .admonition > :last-child {
+            margin-bottom: 0;
+          }
+
+          .admonition-note,
+          .admonition-abstract,
+          .admonition-info,
+          .admonition-example {
+            border-left-color: #2563eb;
+            background: #eff6ff;
+          }
+
+          .admonition-tip,
+          .admonition-success {
+            border-left-color: #059669;
+            background: #ecfdf5;
+          }
+
+          .admonition-important,
+          .admonition-question {
+            border-left-color: #7c3aed;
+            background: #f5f3ff;
+          }
+
+          .admonition-warning,
+          .admonition-caution {
+            border-left-color: #d97706;
+            background: #fff7ed;
+          }
+
+          .admonition-danger,
+          .admonition-failure,
+          .admonition-bug {
+            border-left-color: #dc2626;
+            background: #fef2f2;
+          }
+
+          .admonition-quote {
+            border-left-color: #475569;
+            background: #f8fafc;
+          }
+
           a {
             color: #0f62fe;
             text-decoration: none;
@@ -232,6 +289,13 @@ private struct Parser {
                 continue
             }
 
+            if let admonition = parseAdmonition(from: line, trimmed: trimmed) {
+                flushParagraph()
+                flushList()
+                blocks.append(admonition)
+                continue
+            }
+
             if let quote = parseBlockquote(from: trimmed) {
                 flushParagraph()
                 flushList()
@@ -262,6 +326,78 @@ private struct Parser {
         flushParagraph()
         flushList()
         return blocks.joined(separator: "\n")
+    }
+
+    private mutating func parseAdmonition(from rawLine: String, trimmed line: String) -> String? {
+        if let admonition = parseFencedAdmonition(from: line) {
+            return admonition
+        }
+
+        if let admonition = parseQuotedAdmonition(from: rawLine, trimmed: line) {
+            return admonition
+        }
+
+        return nil
+    }
+
+    private mutating func parseFencedAdmonition(from line: String) -> String? {
+        guard line.hasPrefix("!!!") else {
+            return nil
+        }
+
+        let marker = line.dropFirst(3).trimmingCharacters(in: .whitespaces)
+        guard let header = parseAdmonitionHeader(marker) else {
+            return nil
+        }
+
+        index += 1
+
+        var contentLines: [String] = []
+        while index < lines.count {
+            let nextLine = lines[index]
+
+            if nextLine.trimmingCharacters(in: .whitespaces).isEmpty {
+                contentLines.append("")
+                index += 1
+                continue
+            }
+
+            guard let strippedLine = stripAdmonitionIndentation(from: nextLine) else {
+                break
+            }
+
+            contentLines.append(strippedLine)
+            index += 1
+        }
+
+        return renderAdmonition(type: header.type, title: header.title, markdown: contentLines.joined(separator: "\n"))
+    }
+
+    private mutating func parseQuotedAdmonition(from rawLine: String, trimmed line: String) -> String? {
+        guard line.hasPrefix(">") else {
+            return nil
+        }
+
+        let firstContent = stripBlockquotePrefix(from: rawLine)
+        guard let header = parseGitHubCalloutHeader(firstContent.trimmingCharacters(in: .whitespaces)) else {
+            return nil
+        }
+
+        index += 1
+
+        var contentLines: [String] = []
+        while index < lines.count {
+            let nextLine = lines[index]
+            let nextTrimmed = nextLine.trimmingCharacters(in: .whitespaces)
+            guard nextTrimmed.hasPrefix(">") else {
+                break
+            }
+
+            contentLines.append(stripBlockquotePrefix(from: nextLine))
+            index += 1
+        }
+
+        return renderAdmonition(type: header.type, title: header.title, markdown: contentLines.joined(separator: "\n"))
     }
 
     private mutating func parseCodeBlock(startingAt line: String) -> String? {
@@ -311,16 +447,13 @@ private struct Parser {
 
         var quoteLines: [String] = []
         while index < lines.count {
-            let nextLine = lines[index].trimmingCharacters(in: .whitespaces)
-            guard nextLine.hasPrefix(">") else {
+            let nextLine = lines[index]
+            let nextTrimmed = nextLine.trimmingCharacters(in: .whitespaces)
+            guard nextTrimmed.hasPrefix(">") else {
                 break
             }
 
-            var content = String(nextLine.dropFirst())
-            if content.first == " " {
-                content.removeFirst()
-            }
-            quoteLines.append(content)
+            quoteLines.append(stripBlockquotePrefix(from: nextLine))
             index += 1
         }
 
@@ -386,6 +519,114 @@ private struct Parser {
         blocks.append("<\(tag)>\(items)</\(tag)>")
         currentListItems.removeAll(keepingCapacity: true)
         self.currentListType = nil
+    }
+
+    private func parseAdmonitionHeader(_ text: String) -> (type: String, title: String)? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        let typeEnd = trimmed.firstIndex(where: \.isWhitespace) ?? trimmed.endIndex
+        let rawType = String(trimmed[..<typeEnd])
+        let remainder = String(trimmed[typeEnd...]).trimmingCharacters(in: .whitespaces)
+
+        let normalizedType = normalizeAdmonitionType(rawType)
+        let title = parseQuotedTitle(from: remainder) ?? defaultAdmonitionTitle(for: normalizedType)
+        return (normalizedType, title)
+    }
+
+    private func parseGitHubCalloutHeader(_ text: String) -> (type: String, title: String?)? {
+        guard text.hasPrefix("[!") else {
+            return nil
+        }
+
+        guard let closingBracket = text.firstIndex(of: "]") else {
+            return nil
+        }
+
+        let typeStart = text.index(text.startIndex, offsetBy: 2)
+        guard typeStart < closingBracket else {
+            return nil
+        }
+
+        let rawType = String(text[typeStart..<closingBracket])
+        let normalizedType = normalizeAdmonitionType(rawType)
+
+        let remainderStart = text.index(after: closingBracket)
+        let remainder = remainderStart < text.endIndex
+            ? String(text[remainderStart...]).trimmingCharacters(in: .whitespaces)
+            : ""
+        let title = remainder.isEmpty ? nil : remainder
+
+        return (normalizedType, title)
+    }
+
+    private func normalizeAdmonitionType(_ rawType: String) -> String {
+        let trimmed = rawType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let scalars = trimmed.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" }
+        let normalized = String(String.UnicodeScalarView(scalars))
+        return normalized.isEmpty ? "note" : normalized
+    }
+
+    private func defaultAdmonitionTitle(for type: String) -> String {
+        type
+            .split(separator: "-")
+            .map { segment in
+                let word = String(segment)
+                guard let first = word.first else {
+                    return word
+                }
+
+                return first.uppercased() + word.dropFirst()
+            }
+            .joined(separator: " ")
+    }
+
+    private func parseQuotedTitle(from text: String) -> String? {
+        guard text.hasPrefix("\""), text.count >= 2 else {
+            return nil
+        }
+
+        let titleStart = text.index(after: text.startIndex)
+        guard let titleEnd = text[titleStart...].firstIndex(of: "\"") else {
+            return nil
+        }
+
+        return String(text[titleStart..<titleEnd])
+    }
+
+    private func stripAdmonitionIndentation(from line: String) -> String? {
+        if line.hasPrefix("\t") {
+            return String(line.dropFirst())
+        }
+
+        guard line.hasPrefix("    ") else {
+            return nil
+        }
+
+        return String(line.dropFirst(4))
+    }
+
+    private func stripBlockquotePrefix(from line: String) -> String {
+        guard let markerIndex = line.firstIndex(of: ">") else {
+            return line.trimmingCharacters(in: .whitespaces)
+        }
+
+        let afterMarker = line.index(after: markerIndex)
+        var content = String(line[afterMarker...])
+        if content.first == " " {
+            content.removeFirst()
+        }
+        return content
+    }
+
+    private func renderAdmonition(type: String, title: String?, markdown: String) -> String {
+        var nested = Parser(markdown: markdown)
+        let renderedBody = nested.render()
+        let resolvedTitle = title ?? defaultAdmonitionTitle(for: type)
+        let titleHTML = "<p class=\"admonition-title\">\(renderInline(resolvedTitle))</p>"
+        return "<section class=\"admonition admonition-\(MarkdownRenderer.escapeAttribute(type))\">\(titleHTML)\(renderedBody)</section>"
     }
 
     private func renderInline(_ text: String) -> String {

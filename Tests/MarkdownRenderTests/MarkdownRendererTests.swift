@@ -40,6 +40,39 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(html.contains("<img src=\"images/diagram.png\" alt=\"Alt text\">"))
     }
 
+    func testRendererSupportsFencedAdmonitions() throws {
+        let markdown = """
+        !!! note "Heads up"
+            This supports **admonitions** too.
+
+            - first
+            - second
+        """
+
+        let html = try MarkdownRenderer.render(markdown: markdown, fileURL: nil)
+
+        XCTAssertTrue(html.contains("<section class=\"admonition admonition-note\">"))
+        XCTAssertTrue(html.contains("<p class=\"admonition-title\">Heads up</p>"))
+        XCTAssertTrue(html.contains("<p>This supports <strong>admonitions</strong> too.</p>"))
+        XCTAssertTrue(html.contains("<ul><li>first</li><li>second</li></ul>"))
+    }
+
+    func testRendererSupportsGitHubStyleCallouts() throws {
+        let markdown = """
+        > [!WARNING] Read this first
+        > Exporting may overwrite the previous PDF.
+        >
+        > Keep a backup.
+        """
+
+        let html = try MarkdownRenderer.render(markdown: markdown, fileURL: nil)
+
+        XCTAssertTrue(html.contains("<section class=\"admonition admonition-warning\">"))
+        XCTAssertTrue(html.contains("<p class=\"admonition-title\">Read this first</p>"))
+        XCTAssertTrue(html.contains("<p>Exporting may overwrite the previous PDF.</p>"))
+        XCTAssertTrue(html.contains("<p>Keep a backup.</p>"))
+    }
+
     func testSuggestedFileNameUsesPdfExtension() {
         let firstURL = URL(fileURLWithPath: "/tmp/notes.md")
         let secondURL = URL(fileURLWithPath: "/tmp/README.markdown")
